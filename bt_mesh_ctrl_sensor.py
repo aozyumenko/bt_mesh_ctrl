@@ -1,52 +1,27 @@
-#!/opt/homeassistant/bin/python3
+#!python3
 
 import os
 import sys
-sys.path.append(os.getcwd())
 
 import logging
 import asyncio
 from contextlib import suppress
-from uuid import UUID
-import json
-import yaml
 from docopt import docopt
+import yaml
 
 from bluetooth_mesh.application import Application, Element, Capabilities
 from bluetooth_mesh.messages.config import GATTNamespaceDescriptor
 from bluetooth_mesh.messages.properties import PropertyID
-from bluetooth_mesh.models import ConfigServer, ConfigClient, HealthClient
-from bluetooth_mesh.models.generic.onoff import GenericOnOffClient
-from bluetooth_mesh.models.generic.ponoff import GenericPowerOnOffClient
-from bluetooth_mesh.models.generic.level import GenericLevelClient
-from bluetooth_mesh.models.generic.dtt import GenericDTTClient
-from bluetooth_mesh.models.generic.battery import GenericBatteryClient
-from bluetooth_mesh.models.sensor import SensorClient
-from bluetooth_mesh.models.time import TimeClient
-from bluetooth_mesh.models.light.lightness import LightLightnessClient
-from bluetooth_mesh.models.light.ctl import LightCTLClient
-from bluetooth_mesh.models.light.hsl import LightHSLClient
-from bluetooth_mesh.models.vendor.thermostat import ThermostatClient
-from bluetooth_mesh.models.scene import SceneClient
-from bluetooth_mesh.models.time import TimeServer, TimeSetupServer
+from bluetooth_mesh.models import Model, ConfigServer, ConfigClient
+from bluetooth_mesh.models.sensor import SensorClient, SensorServer
 
+from bt_mesh.mesh_provisioner_conf import MeshProvisionerConf
 from bt_mesh.mesh_cfgclient_conf import MeshCfgclientConf
 from bt_mesh import BtMeshModelId
 from bt_mesh import BtSensorAttrPropertyId
 from bt_mesh.publication import Publication
 from bt_mesh.cadence import Cadence
-
-
-
-G_PATH = "/com/silvair/sample_" + os.environ['USER']
-#G_CFGCLIENT_CONFIG_PATH = "/home/homeassistant/.config/meshcfg/config_db.json"
-G_CFGCLIENT_CONFIG_PATH = "/home/scg/.config/meshcfg/config_db.json"
-G_SENSOR_CONFIG_PATH = "./mesh_sensor_config.yaml"
-G_SEND_INTERVAL = 0.5
-G_TIMEOUT = 10.0
-
-#PROVISIONER_UUID = "d4a89960-ad5b-4bfd-a943-9d795551534d"
-PROVISIONER_UUID = "f7f2ded9-2cb3-454e-975e-a79f4e5830cd"
+from bt_mesh.application import MeshCfgclient
 
 
 
@@ -54,55 +29,18 @@ log = logging.getLogger()
 
 
 
-class ProvisionerMainElement(Element):
-    LOCATION = GATTNamespaceDescriptor.MAIN
-    MODELS = [
-        ConfigServer,
-        ConfigClient,
-    ]
-
-class ProvisionerApplication(Application):
-    COMPANY_ID = 0x05f1         # The Linux Foundation
-    PRODUCT_ID = 0x0001
-    VERSION_ID = 1
-    ELEMENTS = {
-        0: ProvisionerMainElement,
-    }
-    CAPABILITIES = [Capabilities.OUT_NUMERIC]
-    CRPL = 0x8000
-    PATH = "/ru/stdio/ha_mesh_ctrl_provisioner"
-    _uuid: UUID
-
-    @property
-    def uuid(self) -> UUID:
-        return self._uuid
-
-    def __init__(self, loop: asyncio.AbstractEventLoop, uuid: str):
-        self._uuid = UUID(uuid)
-        super().__init__(loop)
-
-    def dbus_disconnected(self, owner) -> any:
-        pass
+G_PATH = "/mesh/bt_mesh_ctrl_sensor"
+G_CFGCLIENT_CONFIG_PATH = "~/.config/meshcfg/config_db.json"
+G_SENSOR_CONFIG_PATH = "./mesh_sensor_config.yaml"
+G_SEND_INTERVAL = 0.5
+G_TIMEOUT = 10.0
 
 
 
 class ClientMainElement(Element):
     LOCATION = GATTNamespaceDescriptor.MAIN
     MODELS = [
-        HealthClient,
-        GenericOnOffClient,
-        GenericPowerOnOffClient,
-        GenericLevelClient,
-        GenericDTTClient,
-        GenericBatteryClient,
         SensorClient,
-        LightLightnessClient,
-        LightCTLClient,
-        LightHSLClient,
-        ThermostatClient,
-        SceneClient,
-        TimeServer,
-        TimeSetupServer
     ]
 
 class ClientApplication(Application):
@@ -119,13 +57,29 @@ class ClientApplication(Application):
     def dbus_disconnected(self, owner) -> any:
         pass
 
+    def display_numeric(self, type: str, number: int):
+        print("request key, number: %d" % (number))
+
+
+
+async def mesh_join(loop: asyncio.AbstractEventLoop):
+    client = ClientApplication(loop)
+    async with client:
+        print("Join start...")
+        client_token = await client.join()
+        print("Join complete");
+
+async def mesh_leave(loop: asyncio.AbstractEventLoop):
+    client = ClientApplication(loop)
+    async with client:
+        await client.connect()
+        await client.leave()
 
 
 async def get(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None):
-    provisioner = ProvisionerApplication(loop, PROVISIONER_UUID)
+    provisioner_conf = MeshProvisionerConf(G_CFGCLIENT_CONFIG_PATH)
+    provisioner = MeshCfgclient(loop, provisioner_conf)
     client = ClientApplication(loop)
-
-    from bluetooth_mesh import models
 
     mesh_conf = MeshCfgclientConf(G_CFGCLIENT_CONFIG_PATH)
     mesh_conf.load()
@@ -187,7 +141,7 @@ async def get(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
                         device_unicast_addr,
                         device_net_key,
                         element_unicast_addr,
-                        models.SensorServer,
+                        SensorServer,
                         send_interval=G_SEND_INTERVAL,
                         timeout=G_TIMEOUT
                     )
@@ -250,17 +204,14 @@ async def get(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
                 if not group_name or group_name not in group_cadence or cadence != group_cadence[group_name]:
                     conf["elements"][key]["cadence"] = cadence
 
-
     with open(G_SENSOR_CONFIG_PATH, 'w') as file:
         yaml.dump(conf, file)
 
 
-
 async def set(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None):
-    provisioner = ProvisionerApplication(loop, PROVISIONER_UUID)
+    provisioner_conf = MeshProvisionerConf(G_CFGCLIENT_CONFIG_PATH)
+    provisioner = MeshCfgclient(loop, provisioner_conf)
     client = ClientApplication(loop)
-
-    from bluetooth_mesh import models
 
     try:
         with open(G_SENSOR_CONFIG_PATH, 'r') as file:
@@ -298,7 +249,6 @@ async def set(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
                 else:
                     publication = element["publication"]
 
-                print(f"publication_address={int(publication['unicast_addr'], 16)}")
                 try:
                     status = await config_client.set_publication(
                         destination=int(element["device_unicat_addr"], 16),
@@ -306,7 +256,7 @@ async def set(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
                         element_address=element_unicast_addr,
                         publication_address=int(publication["unicast_addr"], 16),
                         app_key_index=publication["app_key"],
-                        model=models.SensorServer,
+                        model=SensorServer,
                         ttl=publication["ttl"],
                         publish_period=publication["period"],
                         retransmit_count=publication["retransmissions"]["count"],
@@ -316,9 +266,6 @@ async def set(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
                     )
                 except TimeoutError as e:
                     print(f"0x{element_unicast_addr:04x} - fail: {e}")
-
-                print(f"publication={publication}")
-                print(f"status={status}")
 
     # store element(s) cadence
     async with client:
@@ -341,11 +288,8 @@ async def set(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
                 else:
                     cadence = element["cadence"]
 
-#                print(f"cadence={cadence}")
                 for property_name in cadence:
                     property_cadence = cadence[property_name];
-                    print(f"    {property_name}")
-                    print(f"        {cadence[property_name]}")
                     status = await sensor_client.cadence_set(
                         destination=element_unicast_addr,
                         app_index=element["app_key"],
@@ -360,7 +304,6 @@ async def set(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
                         send_interval=G_SEND_INTERVAL,
                         timeout=G_TIMEOUT
                     )
-                    print(f"{status}");
 
 
 
@@ -369,8 +312,10 @@ async def run(loop: asyncio.AbstractEventLoop):
     Sensor control script
 
     Usage:
-        ha_mesh_ctrl_sensor.py [-a <address>] get
-        ha_mesh_ctrl_sensor.py [-a <address>] set
+        ha_mesh_ctrl_sensor.py [-V] join
+        ha_mesh_ctrl_sensor.py [-V] leave
+        ha_mesh_ctrl_sensor.py [-V] [-a <address>] get
+        ha_mesh_ctrl_sensor.py [-V] [-a <address>] set
         ha_mesh_ctrl_sensor.py [-h | --help]
         ha_mesh_ctrl_sensor.py --version
 
@@ -382,9 +327,16 @@ async def run(loop: asyncio.AbstractEventLoop):
     """
     arguments = docopt(doc, version='1.0')
 
+    if "-V" in arguments and arguments['-V']:
+        logging.basicConfig(level=logging.DEBUG)
+
     unicast_addr = int(arguments["-a"], 16) if "-a" in arguments and arguments["-a"] is not None else None
 
-    if arguments['get']:
+    if arguments['join']:
+        await mesh_join(loop)
+    elif arguments['leave']:
+        await mesh_leave(loop)
+    elif arguments['get']:
         await get(loop, unicast_addr)
     elif arguments['set']:
         await set(loop, unicast_addr)
