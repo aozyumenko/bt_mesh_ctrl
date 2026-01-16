@@ -1,8 +1,5 @@
-#!/opt/homeassistant/bin/python3
-
 import os
 import sys
-sys.path.append(os.getcwd())
 
 import logging
 import asyncio
@@ -30,17 +27,16 @@ from bluetooth_mesh.models.vendor.thermostat import ThermostatClient
 from bluetooth_mesh.models.scene import SceneClient
 from bluetooth_mesh.models.time import TimeServer, TimeSetupServer
 
-from bt_mesh.mesh_cfgclient_conf import MeshCfgclientConf
-from bt_mesh import BtMeshModelId
-from bt_mesh import BtSensorAttrPropertyId
-from bt_mesh.publication import Publication
-from bt_mesh.cadence import Cadence
+from bt_mesh_ctrl.mesh_cfgclient_conf import MeshCfgclientConf
+from bt_mesh_ctrl import BtMeshModelId
+from bt_mesh_ctrl import BtSensorAttrPropertyId
+from bt_mesh_ctrl.publication import Publication
+from bt_mesh_ctrl.cadence import Cadence
 
 
 
 G_PATH = "/com/silvair/sample_" + os.environ['USER']
-#G_CFGCLIENT_CONFIG_PATH = "/home/homeassistant/.config/meshcfg/config_db.json"
-G_CFGCLIENT_CONFIG_PATH = "/home/scg/.config/meshcfg/config_db.json"
+G_CFGCLIENT_CONFIG_PATH = "~/.config/meshcfg/config_db.json"
 G_SENSOR_CONFIG_PATH = "./mesh_sensor_config.yaml"
 G_SEND_INTERVAL = 0.5
 G_TIMEOUT = 10.0
@@ -393,7 +389,7 @@ async def run(loop: asyncio.AbstractEventLoop):
         exit(-1)
 
 
-def main():
+def cli():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
@@ -402,4 +398,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    cli()
