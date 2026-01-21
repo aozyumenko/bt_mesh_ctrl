@@ -2,6 +2,16 @@ from enum import IntEnum
 from typing import Final
 
 from bluetooth_mesh.messages.properties import PropertyID
+from bluetooth_mesh.models import (
+    ConfigServer,
+    ConfigClient,
+    HealthServer,
+    HealthClient,
+    RemoteProvisioningServer,
+    RemoteProvisioningClient,
+    PrivateBeaconServer,
+    PrivateBeaconClient,
+)
 from bluetooth_mesh.models.generic.onoff import GenericOnOffServer
 from bluetooth_mesh.models.generic.level import GenericLevelServer
 from bluetooth_mesh.models.generic.ponoff import GenericPowerOnOffServer, GenericPowerOnOffSetupServer
@@ -28,6 +38,16 @@ from bluetooth_mesh.messages.time import TimeOpcode
 from bluetooth_mesh.messages.vendor.thermostat import ThermostatOpcode
 
 
+
+__all__ = (
+    "IntEnumName",
+    "BtMeshModelId",
+    "BtSensorAttrPropertyId",
+    "BtMeshOpcode"
+)
+
+
+
 class IntEnumName(IntEnum):
     @classmethod
     def has_value(_class, val: int):
@@ -43,6 +63,14 @@ def model_id_to_num(model_id):
 
 class BtMeshModelId(IntEnumName):
     """ BT Mesh model names. """
+    ConfigServer = model_id_to_num(ConfigServer.MODEL_ID)
+    ConfigClient = model_id_to_num(ConfigClient.MODEL_ID)
+    HealthServer = model_id_to_num(HealthServer.MODEL_ID)
+    HealthClient = model_id_to_num(HealthClient.MODEL_ID)
+    RemoteProvisioningServer = model_id_to_num(RemoteProvisioningServer.MODEL_ID)
+    RemoteProvisioningClient = model_id_to_num(RemoteProvisioningClient.MODEL_ID)
+    PrivateBeaconServer = model_id_to_num(PrivateBeaconServer.MODEL_ID)
+    PrivateBeaconClient = model_id_to_num(PrivateBeaconClient.MODEL_ID)
     GenericOnOffServer = model_id_to_num(GenericOnOffServer.MODEL_ID)
     GenericLevelServer = model_id_to_num(GenericLevelServer.MODEL_ID)
     GenericPowerOnOffServer = model_id_to_num(GenericPowerOnOffServer.MODEL_ID)
@@ -72,6 +100,8 @@ class BtSensorAttrPropertyId(IntEnumName):
 
 
 class BtMeshOpcode:
+    """ BT Mesh opcode names. """
+
     OPCODES: Final = [
         ConfigOpcode,
         GenericOnOffOpcode,

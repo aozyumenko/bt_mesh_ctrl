@@ -12,7 +12,7 @@ __all__ = (
 
 class Cadence:
     @classmethod
-    def unpack_property(_class, prop: Contained) -> dict():
+    def unpack_property(_class, prop: Container) -> dict():
         result = dict()
         for key in prop.keys():
             value = prop[key]
@@ -33,8 +33,8 @@ class Cadence:
                 cadence["status_trigger_delta_up"] = _class.unpack_property(status.status_trigger_delta_up)
             else:
                 cadence["status_trigger_type"] = "percent"
-                cadence["status_trigger_delta_down"] = 0
-                cadence["status_trigger_delta_up"] = 0
+                cadence["status_trigger_delta_down"] = status.status_trigger_delta_down
+                cadence["status_trigger_delta_up"] = status.status_trigger_delta_up
             cadence["status_min_interval"] = status.status_min_interval
             cadence["fast_cadence_low"] = _class.unpack_property(status.fast_cadence_low)
             cadence["fast_cadence_high"] = _class.unpack_property(status.fast_cadence_high)
