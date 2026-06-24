@@ -13,6 +13,7 @@ from bluetooth_mesh.models import (
     PrivateBeaconClient,
 )
 from bluetooth_mesh.models.generic.onoff import GenericOnOffServer
+from bluetooth_mesh.models.generic.dtt import GenericDTTServer
 from bluetooth_mesh.models.generic.level import GenericLevelServer
 from bluetooth_mesh.models.generic.ponoff import GenericPowerOnOffServer, GenericPowerOnOffSetupServer
 from bluetooth_mesh.models.generic.battery import GenericBatteryServer
@@ -72,6 +73,7 @@ class BtMeshModelId(IntEnumName):
     PrivateBeaconServer = model_id_to_num(PrivateBeaconServer.MODEL_ID)
     PrivateBeaconClient = model_id_to_num(PrivateBeaconClient.MODEL_ID)
     GenericOnOffServer = model_id_to_num(GenericOnOffServer.MODEL_ID)
+    GenericDTTServer = model_id_to_num(GenericDTTServer.MODEL_ID)
     GenericLevelServer = model_id_to_num(GenericLevelServer.MODEL_ID)
     GenericPowerOnOffServer = model_id_to_num(GenericPowerOnOffServer.MODEL_ID)
     GenericPowerOnOffSetupServer = model_id_to_num(GenericPowerOnOffSetupServer.MODEL_ID)

@@ -55,6 +55,14 @@ MeshNodePatterns: Final = {
         },
         PATTERN_PRIORITY: 2
     },
+    BtMeshModelId.GenericDTTServer: {
+        PATTERN_ELEMENTS: {
+            PATTERN_MAIN: [
+                BtMeshModelId.GenericDTTServer
+            ]
+        },
+        PATTERN_PRIORITY: 2
+    },
     BtMeshModelId.GenericLevelServer: {
         PATTERN_ELEMENTS: {
             PATTERN_MAIN: [
