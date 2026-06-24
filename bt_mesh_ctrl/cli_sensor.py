@@ -5,6 +5,7 @@ import asyncio
 from contextlib import suppress
 from docopt import docopt
 import yaml
+from enum import IntEnum
 
 from bluetooth_mesh.application import Application, Element, Capabilities
 from bluetooth_mesh.messages.config import GATTNamespaceDescriptor
@@ -307,12 +308,12 @@ async def run(loop: asyncio.AbstractEventLoop):
     Sensor control script
 
     Usage:
-        ha_mesh_ctrl_sensor.py [-V] join
-        ha_mesh_ctrl_sensor.py [-V] leave
-        ha_mesh_ctrl_sensor.py [-V] [-a <address>] get
-        ha_mesh_ctrl_sensor.py [-V] [-a <address>] set
-        ha_mesh_ctrl_sensor.py [-h | --help]
-        ha_mesh_ctrl_sensor.py --version
+        bt_mesh_ctrl_sensor [-V] join
+        bt_mesh_ctrl_sensor [-V] leave
+        bt_mesh_ctrl_sensor [-V] [-a <address>] get
+        bt_mesh_ctrl_sensor [-V] [-a <address>] set
+        bt_mesh_ctrl_sensor [-h | --help]
+        bt_mesh_ctrl_sensor --version
 
     Options:
         -a <address>            Local node unicast address
@@ -341,6 +342,7 @@ async def run(loop: asyncio.AbstractEventLoop):
 
 
 def cli():
+    yaml.add_multi_representer(IntEnum, lambda dumper, data: dumper.represent_int(data.value))
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
