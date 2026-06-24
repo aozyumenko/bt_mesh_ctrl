@@ -1,13 +1,11 @@
-#!python3
-
 import os
 import sys
 
-import logging
 import asyncio
 from contextlib import suppress
 from docopt import docopt
 import yaml
+from enum import IntEnum
 
 from bluetooth_mesh.application import Application, Element, Capabilities
 from bluetooth_mesh.messages.config import GATTNamespaceDescriptor
@@ -15,16 +13,14 @@ from bluetooth_mesh.messages.properties import PropertyID
 from bluetooth_mesh.models import Model, ConfigServer, ConfigClient
 from bluetooth_mesh.models.sensor import SensorClient, SensorServer
 
-from bt_mesh.mesh_provisioner_conf import MeshProvisionerConf
-from bt_mesh.mesh_cfgclient_conf import MeshCfgclientConf
-from bt_mesh import BtMeshModelId
-from bt_mesh import BtSensorAttrPropertyId
-from bt_mesh.publication import Publication
-from bt_mesh.cadence import Cadence
-from bt_mesh.application import MeshCfgclient
+from bt_mesh_ctrl import BtMeshModelId, BtSensorAttrPropertyId
+from bt_mesh_ctrl.mesh_provisioner_conf import MeshProvisionerConf
+from bt_mesh_ctrl.mesh_cfgclient_conf import MeshCfgclientConf
+from bt_mesh_ctrl.publication import Publication
+from bt_mesh_ctrl.cadence import Cadence
+from bt_mesh_ctrl.application import MeshCfgclient
 
-
-
+import logging
 log = logging.getLogger()
 
 
@@ -312,12 +308,12 @@ async def run(loop: asyncio.AbstractEventLoop):
     Sensor control script
 
     Usage:
-        ha_mesh_ctrl_sensor.py [-V] join
-        ha_mesh_ctrl_sensor.py [-V] leave
-        ha_mesh_ctrl_sensor.py [-V] [-a <address>] get
-        ha_mesh_ctrl_sensor.py [-V] [-a <address>] set
-        ha_mesh_ctrl_sensor.py [-h | --help]
-        ha_mesh_ctrl_sensor.py --version
+        bt_mesh_ctrl_sensor [-V] join
+        bt_mesh_ctrl_sensor [-V] leave
+        bt_mesh_ctrl_sensor [-V] [-a <address>] get
+        bt_mesh_ctrl_sensor [-V] [-a <address>] set
+        bt_mesh_ctrl_sensor [-h | --help]
+        bt_mesh_ctrl_sensor --version
 
     Options:
         -a <address>            Local node unicast address
@@ -345,7 +341,8 @@ async def run(loop: asyncio.AbstractEventLoop):
         exit(-1)
 
 
-def main():
+def cli():
+    yaml.add_multi_representer(IntEnum, lambda dumper, data: dumper.represent_int(data.value))
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
@@ -354,4 +351,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    cli()
