@@ -25,6 +25,7 @@ dependencies = [
 ]
 urls = { Homepage = "https://github.com/aozyumenko/bt_mesh_ctrl" }
 scripts.bt_mesh_ctrl_sensor = "bt_mesh_ctrl.cli_sensor:cli"
+scripts.bt_mesh_ctrl_switch = "bt_mesh_ctrl.cli_switch:cli"
 
 [tool.setuptools.dynamic]
 version = { attr = "bt_mesh_ctrl.version.__version__" }
