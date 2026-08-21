@@ -47,6 +47,14 @@ JSON_LOW_POWER: Final = "lowPower"
 
 # for searching devices in a nodes
 MeshNodePatterns: Final = {
+    BtMeshModelId.HealthServer: {
+        PATTERN_ELEMENTS: {
+            PATTERN_MAIN: [
+                BtMeshModelId.HealthServer
+            ]
+        },
+        PATTERN_PRIORITY: 2
+    },
     BtMeshModelId.GenericOnOffServer: {
         PATTERN_ELEMENTS: {
             PATTERN_MAIN: [
