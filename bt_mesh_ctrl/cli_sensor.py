@@ -1,6 +1,3 @@
-import os
-import sys
-
 import asyncio
 from contextlib import suppress
 from docopt import docopt
@@ -10,7 +7,7 @@ from enum import IntEnum
 from bluetooth_mesh.application import Application, Element, Capabilities
 from bluetooth_mesh.messages.config import GATTNamespaceDescriptor
 from bluetooth_mesh.messages.properties import PropertyID
-from bluetooth_mesh.models import Model, ConfigServer, ConfigClient
+from bluetooth_mesh.models import ConfigClient
 from bluetooth_mesh.models.sensor import SensorClient, SensorServer
 
 from bt_mesh_ctrl import BtMeshModelId, BtSensorAttrPropertyId
@@ -24,7 +21,6 @@ import logging
 log = logging.getLogger()
 
 
-
 G_PATH = "/mesh/bt_mesh_ctrl"
 G_CFGCLIENT_CONFIG_PATH = "~/.config/meshcfg/config_db.json"
 G_SENSOR_CONFIG_PATH = "./mesh_sensor_config.yaml"
@@ -32,12 +28,12 @@ G_SEND_INTERVAL = 0.5
 G_TIMEOUT = 10.0
 
 
-
 class ClientMainElement(Element):
     LOCATION = GATTNamespaceDescriptor.MAIN
     MODELS = [
         SensorClient,
     ]
+
 
 class ClientApplication(Application):
     COMPANY_ID = 0x05f1         # The Linux Foundation
@@ -57,13 +53,11 @@ class ClientApplication(Application):
         print("request key, number: %d" % (number))
 
 
-
 async def mesh_join(loop: asyncio.AbstractEventLoop):
     client = ClientApplication(loop)
     async with client:
-        print("Join start...")
-        client_token = await client.join()
-        print("Join complete");
+        print("Join complete")
+
 
 async def mesh_leave(loop: asyncio.AbstractEventLoop):
     client = ClientApplication(loop)
@@ -80,12 +74,12 @@ async def get(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
     mesh_conf = MeshCfgclientConf(G_CFGCLIENT_CONFIG_PATH)
     mesh_conf.load()
     elements = mesh_conf.get_models_by_model_id(BtMeshModelId.SensorSetupServer)
-    elements.sort(key=lambda e : e.unicast_addr)
+    elements.sort(key=lambda e: e.unicast_addr)
 
     try:
         with open(G_SENSOR_CONFIG_PATH, 'r') as file:
             conf = yaml.safe_load(file)
-    except FileNotFoundError as e:
+    except FileNotFoundError:
         conf = dict()
 
     group_publication = {}
@@ -106,7 +100,7 @@ async def get(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
         element_unicast_addr = element.unicast_addr
         key = f"0x{element_unicast_addr:04x}"
 
-        if (key in  conf["elements"]):
+        if (key in conf["elements"]):
             continue
 
         if (not unicast_addr or unicast_addr == element_unicast_addr):
@@ -144,7 +138,7 @@ async def get(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
                     publication = Publication.extract(status)
                     try:
                         group_name = conf["elements"][key]["publication"]["group"]
-                    except:
+                    except KeyError:
                         group_name = None
                     if not group_name or group_name not in group_publication or publication != group_publication[group_name]:
                         conf["elements"][key]["publication"] = publication
@@ -195,7 +189,7 @@ async def get(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
 
                 try:
                     group_name = conf["elements"][key]["cadence"]["group"]
-                except:
+                except KeyError:
                     group_name = None
                 if not group_name or group_name not in group_cadence or cadence != group_cadence[group_name]:
                     conf["elements"][key]["cadence"] = cadence
@@ -238,7 +232,7 @@ async def set(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
 
                 try:
                     group_name = element["publication"]["group"]
-                except:
+                except KeyError:
                     group_name = None
                 if group_name and group_name in group_publication:
                     publication = group_publication[group_name]
@@ -246,7 +240,7 @@ async def set(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
                     publication = element["publication"]
 
                 try:
-                    status = await config_client.set_publication(
+                    await config_client.set_publication(
                         destination=int(element["device_unicat_addr"], 16),
                         net_index=element["net_key"],
                         element_address=element_unicast_addr,
@@ -277,7 +271,7 @@ async def set(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
 
                 try:
                     group_name = element["cadence"]["group"]
-                except:
+                except KeyError:
                     group_name = None
                 if group_name and group_name in group_cadence:
                     cadence = group_cadence[group_name]
@@ -285,8 +279,8 @@ async def set(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
                     cadence = element["cadence"]
 
                 for property_name in cadence:
-                    property_cadence = cadence[property_name];
-                    status = await sensor_client.cadence_set(
+                    property_cadence = cadence[property_name]
+                    await sensor_client.cadence_set(
                         destination=element_unicast_addr,
                         app_index=element["app_key"],
                         sensor_setting_property_id=getattr(PropertyID, property_name),
@@ -300,7 +294,6 @@ async def set(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
                         send_interval=G_SEND_INTERVAL,
                         timeout=G_TIMEOUT
                     )
-
 
 
 async def run(loop: asyncio.AbstractEventLoop):
