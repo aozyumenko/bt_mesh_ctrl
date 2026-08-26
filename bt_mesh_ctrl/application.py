@@ -2,16 +2,25 @@
 from __future__ import annotations
 
 import asyncio
+from typing import (
+    Any,
+    Awaitable,
+    Callable,
+    Dict,
+    Mapping,
+    Optional,
+    Tuple,
+)
+from uuid import UUID
 
 from bluetooth_mesh import models as bluetooth_mesh_models
-from bluetooth_mesh.application import Application, Element#, Capabilities
+from bluetooth_mesh.application import Application, Element
 
 from bt_mesh_ctrl import BtMeshModelId
 from bt_mesh_ctrl.mesh_provisioner_conf import MeshProvisionerConf
 
 import logging
 _LOGGER = logging.getLogger(__name__)
-
 
 
 __all__ = (
@@ -21,9 +30,7 @@ __all__ = (
 )
 
 
-
 G_PROVISIONER_PATH = "/mesh/cfgclient"
-
 
 
 class SimpleTokenRing:
@@ -84,7 +91,10 @@ class MeshCfgclient(Application):
         self.CRPL = provisioner.crpl
         self.ELEMENTS = {}
         for element in provisioner.elements:
-            models = [getattr(bluetooth_mesh_models, BtMeshModelId.get_name(x)) for x in element.models]
+            models = [
+                getattr(bluetooth_mesh_models, BtMeshModelId.get_name(x))
+                for x in element.models
+            ]
             self.ELEMENTS[element.index] = type(
                 'ProvisionerMainElement',
                 (Element, object),
@@ -112,7 +122,6 @@ class MeshCfgclient(Application):
                 pass
             await asyncio.sleep(1)
         raise NotImplementedError("Getting primary network key should be overridden!")
-
 
     # replace parent Application class members
     def get_namespace(self):
