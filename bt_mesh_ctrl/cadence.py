@@ -9,7 +9,6 @@ __all__ = (
 )
 
 
-
 class Cadence:
     @classmethod
     def unpack_property(_class, prop: Container) -> dict():
@@ -39,7 +38,7 @@ class Cadence:
             cadence["fast_cadence_low"] = _class.unpack_property(status.fast_cadence_low)
             cadence["fast_cadence_high"] = _class.unpack_property(status.fast_cadence_high)
             return cadence
-        except AttributeError as e:
+        except AttributeError:
             return {}
 
     @classmethod
