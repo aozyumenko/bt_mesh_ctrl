@@ -1,18 +1,18 @@
 """mesh_cfgclient configuration file reader"""
 from __future__ import annotations
 
-import os.path, time
+import os.path
 from pathlib import Path
 import itertools
 import json
 from dataclasses import dataclass
+from typing import Final
 from uuid import UUID
 
 from bt_mesh_ctrl import BtMeshModelId
 
 import logging
 _LOGGER = logging.getLogger(__name__)
-
 
 
 PATTERN_ELEMENTS: Final = "elements"
@@ -42,7 +42,6 @@ JSON_RELAY: Final = "relay"
 JSON_PROXY: Final = "proxy"
 JSON_FRIEND: Final = "friend"
 JSON_LOW_POWER: Final = "lowPower"
-
 
 
 # for searching devices in a nodes
@@ -188,7 +187,6 @@ class MeshCfgDevice:
     @property
     def unique_id(self) -> str:
         return f"{str(self.uuid)}"
-        #return f"{self.unicast_addr:04x}-{str(self.uuid)}"
 
 
 @dataclass
@@ -215,7 +213,6 @@ class MeshCfgModel:
         return f"{self.unicast_addr:04x}-{self.model_id:04x}-{str(self.device.uuid)}"
 
 
-
 class MeshCfgclientConf:
     @staticmethod
     def _match_models_pattern(pattern_models, models):
@@ -227,7 +224,7 @@ class MeshCfgclientConf:
             try:
                 model_id = int(model[JSON_MODEL_ID], 16)
                 models_match[model_id] = False
-            except Exception as e:
+            except Exception:
                 pass
 
         num_models_match = 0
@@ -238,7 +235,6 @@ class MeshCfgclientConf:
 
         is_match = len(pattern_models) == num_models_match
         return is_match
-
 
     @staticmethod
     def _match_node_models(pattern_elements, elements):
@@ -262,15 +258,16 @@ class MeshCfgclientConf:
                         if is_match:
                             partial_elements_match[pattern_element_name] = element_idx
                             break
-                    except Exception as e:
+                    except Exception:
                         pass
 
-            if len(pattern_elements.keys()) == len(partial_elements_match.keys()) and \
-                    not partial_elements_match in elements_match:
+            if (
+                len(pattern_elements.keys()) == len(partial_elements_match.keys())
+                and partial_elements_match not in elements_match
+            ):
                 elements_match.append(partial_elements_match)
 
         return elements_match
-
 
     @staticmethod
     def _get_node_models(elements):
@@ -295,12 +292,16 @@ class MeshCfgclientConf:
         for (model_a, model_b) in list(itertools.combinations(models.keys(), 2)):
             model_a_priority = int(MeshNodePatterns[int(model_a)][PATTERN_PRIORITY])
             model_b_priority = int(MeshNodePatterns[int(model_b)][PATTERN_PRIORITY])
-            elements_a = {idx: MeshNodePatterns[int(model_a)][PATTERN_ELEMENTS][name]
+            elements_a = {
+                idx: MeshNodePatterns[int(model_a)][PATTERN_ELEMENTS][name]
                 for val in models[model_a]
-                    for (name, idx) in val.items()}
-            elements_b = {idx: MeshNodePatterns[int(model_b)][PATTERN_ELEMENTS][name]
+                for (name, idx) in val.items()
+            }
+            elements_b = {
+                idx: MeshNodePatterns[int(model_b)][PATTERN_ELEMENTS][name]
                 for val in models[model_b]
-                    for (name, idx) in val.items()}
+                for (name, idx) in val.items()
+            }
 
             for idx in elements_a.keys():
                 if idx in elements_b:
@@ -320,7 +321,7 @@ class MeshCfgclientConf:
                     t = (model_id, idx)
                     if t in drop_list:
                         is_drop_element = True
-                        break;
+                        break
 
                 # delete all elements of the model if there is
                 # a conflict in at least one of them
@@ -331,21 +332,24 @@ class MeshCfgclientConf:
 
         return result_models
 
-
     @staticmethod
-    def _parse(data, uuid = None):
+    def _parse(data, uuid=None):
         # get provisioners
-        provisioners = [provisioner[JSON_UUID]
-            for provisioner in data.get(JSON_PROVISIONERS, ())]
+        provisioners = [
+            provisioner[JSON_UUID]
+            for provisioner in data.get(JSON_PROVISIONERS, ())
+        ]
 
         # get own (client) appKeys
         app_keys = []
         if uuid is not None:
-            app_keys = [int(node_app_key[JSON_INDEX])
+            app_keys = [
+                int(node_app_key[JSON_INDEX])
                 for node in data.get(JSON_NODES, ())
-                    if JSON_UUID in node and node[JSON_UUID].lower() == uuid.lower()
-                        for node_app_key in node.get(JSON_APP_KEYS, ())
-                            if JSON_INDEX in node_app_key]
+                if JSON_UUID in node and node[JSON_UUID].lower() == uuid.lower()
+                for node_app_key in node.get(JSON_APP_KEYS, ())
+                if JSON_INDEX in node_app_key
+            ]
 
         # enumerate nodes
         devices = []
@@ -353,12 +357,16 @@ class MeshCfgclientConf:
             try:
                 node_uuid = node[JSON_UUID]
                 node_unicast_addr = int(node[JSON_UNICAST_ADDRESS], 16)
-                node_net_keys = [int(net_key[JSON_INDEX]) for net_key in node[JSON_NET_KEYS] if not net_key[JSON_UPDATED]]
+                node_net_keys = [
+                    int(net_key[JSON_INDEX])
+                    for net_key in node[JSON_NET_KEYS]
+                    if not net_key[JSON_UPDATED]
+                ]
                 node_elements = node[JSON_ELEMENTS]
                 node_cid = int(node[JSON_CID], 16)
                 node_pid = int(node[JSON_PID], 16)
                 node_vid = int(node[JSON_VID], 16)
-            except Exception as e:
+            except Exception:
                 continue
 
             if JSON_FEATURES in node:
@@ -409,10 +417,10 @@ class MeshCfgclientConf:
                                     model_keys[element_idx] = {}
                                 model_keys[element_idx][element_model_id] = key
 
-                        except Exception as e:
+                        except Exception:
                             pass
 
-                except Exception as e:
+                except Exception:
                     pass
 
             device_info = {
@@ -481,7 +489,6 @@ class MeshCfgclientConf:
             )
         return cfg_devices
 
-
     def get_models(self) -> list:
         models = []
         for device_item in self.devices:
@@ -505,9 +512,14 @@ class MeshCfgclientConf:
                     extends = {key: MeshCfgModelExtend(
                         name=key,
                         unicast_addr=device_unicast_addr+val,
-                        app_key=device_item[JSON_APP_KEYS][val][model_items_id]
-                            if val in device_item[JSON_APP_KEYS]
-                                and model_items_id in device_item[JSON_APP_KEYS][val] else None
+                        app_key=(
+                            device_item[JSON_APP_KEYS][val][model_items_id]
+                            if (
+                                val in device_item[JSON_APP_KEYS]
+                                and model_items_id in device_item[JSON_APP_KEYS][val]
+                            )
+                            else None
+                        )
                     ) for key, val in element_item.items()}
 
                     if extends[PATTERN_MAIN].app_key is not None:
@@ -516,14 +528,15 @@ class MeshCfgclientConf:
                             model_id=model_items_id,
                             unicast_addr=extends[PATTERN_MAIN].unicast_addr,
                             app_key=extends[PATTERN_MAIN].app_key,
-                            extends={key: val for key, val in extends.items()
-                                if key != PATTERN_MAIN and val.app_key is not None}
+                            extends={
+                                key: val for key, val in extends.items()
+                                if key != PATTERN_MAIN and val.app_key is not None
+                            }
                         )
 
                         models.append(mesh_cfg_model)
 
         return models
 
-
     def get_models_by_model_id(self, model_id: BtMeshModelId) -> list:
-        return [model for model in self.get_models() if  model.model_id == model_id]
+        return [model for model in self.get_models() if model.model_id == model_id]
