@@ -1,6 +1,3 @@
-import os
-import sys
-
 import asyncio
 from contextlib import suppress
 from docopt import docopt
@@ -9,8 +6,7 @@ from enum import IntEnum
 
 from bluetooth_mesh.application import Application, Element, Capabilities
 from bluetooth_mesh.messages.config import GATTNamespaceDescriptor
-from bluetooth_mesh.messages.properties import PropertyID
-from bluetooth_mesh.models import Model, ConfigServer, ConfigClient
+from bluetooth_mesh.models import ConfigClient
 from bluetooth_mesh.models.generic.onoff import GenericOnOffServer, GenericOnOffClient
 from bluetooth_mesh.models.generic.dtt import GenericDTTClient
 from bluetooth_mesh.models.generic.ponoff import GenericPowerOnOffClient
@@ -25,13 +21,11 @@ import logging
 log = logging.getLogger()
 
 
-
 G_PATH = "/mesh/bt_mesh_ctrl"
 G_CFGCLIENT_CONFIG_PATH = "~/.config/meshcfg/config_db.json"
 G_SWITCH_CONFIG_PATH = "./mesh_switch_config.yaml"
 G_SEND_INTERVAL = 1.0
 G_TIMEOUT = 10.0
-
 
 
 class ClientMainElement(Element):
@@ -41,6 +35,7 @@ class ClientMainElement(Element):
         GenericDTTClient,
         GenericPowerOnOffClient,
     ]
+
 
 class ClientApplication(Application):
     COMPANY_ID = 0x05f1         # The Linux Foundation
@@ -60,13 +55,11 @@ class ClientApplication(Application):
         print("request key, number: %d" % (number))
 
 
-
 async def mesh_join(loop: asyncio.AbstractEventLoop):
     client = ClientApplication(loop)
     async with client:
-        print("Join start...")
-        client_token = await client.join()
-        print("Join complete");
+        print("Join complete")
+
 
 async def mesh_leave(loop: asyncio.AbstractEventLoop):
     client = ClientApplication(loop)
@@ -83,13 +76,18 @@ async def get(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
     mesh_conf = MeshCfgclientConf(G_CFGCLIENT_CONFIG_PATH)
     mesh_conf.load()
     elements = mesh_conf.get_models_by_model_id(BtMeshModelId.GenericOnOffServer)
-    dtt_elements = { model.unicast_addr: model for model in mesh_conf.get_models_by_model_id(BtMeshModelId.GenericDTTServer) }
-    elements.sort(key=lambda e : e.unicast_addr)
+    dtt_elements = {
+        model.unicast_addr: model
+        for model in mesh_conf.get_models_by_model_id(
+            BtMeshModelId.GenericDTTServer
+        )
+    }
+    elements.sort(key=lambda e: e.unicast_addr)
 
     try:
         with open(G_SWITCH_CONFIG_PATH, 'r') as file:
             conf = yaml.safe_load(file)
-    except FileNotFoundError as e:
+    except FileNotFoundError:
         conf = dict()
 
     group_publication = {}
@@ -110,7 +108,7 @@ async def get(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
         element_unicast_addr = element.unicast_addr
         key = f"0x{element_unicast_addr:04x}"
 
-        if (key in  conf["elements"]):
+        if (key in conf["elements"]):
             continue
 
         if (not unicast_addr or unicast_addr == element_unicast_addr):
@@ -146,7 +144,7 @@ async def get(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
                     publication = Publication.extract(status)
                     try:
                         group_name = conf["elements"][key]["server"]["publication"]["group"]
-                    except:
+                    except KeyError:
                         group_name = None
                     if not group_name or group_name not in group_publication or publication != group_publication[group_name]:
                         conf["elements"][key]["server"] = {}
@@ -187,10 +185,16 @@ async def get(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
 
                     try:
                         group_name = conf["elements"][key]["server"]["dtt"]["group"]
-                    except:
+                    except KeyError:
                         group_name = None
-                    if not group_name or group_name not in group_dtt or transition_time != group_dtt[group_name]["transition_time"]:
-                        conf["elements"][key]["server"]["dtt"] = { "transition_time": transition_time }
+                    if (
+                        not group_name
+                        or group_name not in group_dtt
+                        or transition_time != group_dtt[group_name]["transition_time"]
+                    ):
+                        conf["elements"][key]["server"]["dtt"] = {
+                            "transition_time": transition_time
+                        }
 
     with open(G_SWITCH_CONFIG_PATH, 'w') as file:
         yaml.dump(conf, file)
@@ -230,7 +234,7 @@ async def set(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
 
                 try:
                     group_name = element["server"]["publication"]["group"]
-                except:
+                except KeyError:
                     group_name = None
                 if group_name and group_name in group_publication:
                     publication = group_publication[group_name]
@@ -238,7 +242,7 @@ async def set(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
                     publication = element["server"]["publication"]
 
                 try:
-                    status = await config_client.set_publication(
+                    await config_client.set_publication(
                         destination=int(element["device_unicat_addr"], 16),
                         net_index=element["net_key"],
                         element_address=element_unicast_addr,
@@ -251,7 +255,7 @@ async def set(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
                         retransmit_interval=publication["retransmissions"]["interval"],
                         send_interval=G_SEND_INTERVAL,
                         timeout=G_TIMEOUT
-                )
+                    )
                 except TimeoutError as e:
                     print(f"0x{element_unicast_addr:04x} - fail: {e}")
 
@@ -263,14 +267,14 @@ async def set(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
             element_unicast_addr = int(key, 16)
             element = conf["elements"][key]
 
-            if (not unicast_addr or unicast_addr == element_unicast_addr) and "server" in element :
+            if (not unicast_addr or unicast_addr == element_unicast_addr) and "server" in element:
                 if "dtt" in element["server"]:
                     print(f"{key}: store DTT...")
                     generic_dtt_client = client.elements[0][GenericDTTClient]
 
                     try:
                         group_name = element["server"]["dtt"]["group"]
-                    except:
+                    except KeyError:
                         group_name = None
 
                     if group_name and group_name in group_dtt:
@@ -279,7 +283,7 @@ async def set(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
                         transition_time = element["server"]["dtt"]["transition_time"]
 
                     try:
-                        status = await generic_dtt_client.set(
+                        await generic_dtt_client.set(
                             destination=element_unicast_addr,
                             app_index=element["app_key"],
                             transition_time=transition_time,
