@@ -24,6 +24,7 @@ from bluetooth_mesh.models.light.hsl import LightHSLServer, LightHSLSetupServer,
 from bluetooth_mesh.models.vendor.thermostat import ThermostatServer
 
 from bluetooth_mesh.messages.config import ConfigOpcode
+from bluetooth_mesh.messages.health import HealthOpcode
 from bluetooth_mesh.messages.generic.battery import GenericBatteryOpcode
 from bluetooth_mesh.messages.generic.level import GenericLevelOpcode
 from bluetooth_mesh.messages.generic.onoff import GenericOnOffOpcode
@@ -106,6 +107,7 @@ class BtMeshOpcode:
 
     OPCODES: Final = [
         ConfigOpcode,
+        HealthOpcode,
         GenericOnOffOpcode,
         GenericLevelOpcode,
         GenericDTTOpcode,

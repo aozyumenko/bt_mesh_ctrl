@@ -1,6 +1,3 @@
-import os
-import sys
-
 import asyncio
 from contextlib import suppress
 from docopt import docopt
@@ -9,35 +6,31 @@ from enum import IntEnum
 
 from bluetooth_mesh.application import Application, Element, Capabilities
 from bluetooth_mesh.messages.config import GATTNamespaceDescriptor
-from bluetooth_mesh.messages.properties import PropertyID
-from bluetooth_mesh.models import Model, ConfigServer, ConfigClient
-from bluetooth_mesh.models.sensor import SensorClient, SensorServer
+from bluetooth_mesh.models import ConfigClient, HealthServer, HealthClient
 
-from bt_mesh_ctrl import BtMeshModelId, BtSensorAttrPropertyId
+from bt_mesh_ctrl import BtMeshModelId
 from bt_mesh_ctrl.mesh_provisioner_conf import MeshProvisionerConf
 from bt_mesh_ctrl.mesh_cfgclient_conf import MeshCfgclientConf
 from bt_mesh_ctrl.publication import Publication
-from bt_mesh_ctrl.cadence import Cadence
 from bt_mesh_ctrl.application import MeshCfgclient
 
 import logging
 log = logging.getLogger()
 
 
-
 G_PATH = "/mesh/bt_mesh_ctrl"
 G_CFGCLIENT_CONFIG_PATH = "~/.config/meshcfg/config_db.json"
-G_SENSOR_CONFIG_PATH = "./mesh_sensor_config.yaml"
+G_HEALTH_CONFIG_PATH = "./mesh_health_config.yaml"
 G_SEND_INTERVAL = 0.5
 G_TIMEOUT = 10.0
-
 
 
 class ClientMainElement(Element):
     LOCATION = GATTNamespaceDescriptor.MAIN
     MODELS = [
-        SensorClient,
+        HealthClient,
     ]
+
 
 class ClientApplication(Application):
     COMPANY_ID = 0x05f1         # The Linux Foundation
@@ -57,13 +50,11 @@ class ClientApplication(Application):
         print("request key, number: %d" % (number))
 
 
-
 async def mesh_join(loop: asyncio.AbstractEventLoop):
     client = ClientApplication(loop)
     async with client:
-        print("Join start...")
-        client_token = await client.join()
-        print("Join complete");
+        print("Join complete")
+
 
 async def mesh_leave(loop: asyncio.AbstractEventLoop):
     client = ClientApplication(loop)
@@ -79,22 +70,22 @@ async def get(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
 
     mesh_conf = MeshCfgclientConf(G_CFGCLIENT_CONFIG_PATH)
     mesh_conf.load()
-    elements = mesh_conf.get_models_by_model_id(BtMeshModelId.SensorSetupServer)
-    elements.sort(key=lambda e : e.unicast_addr)
+    elements = mesh_conf.get_models_by_model_id(BtMeshModelId.HealthServer)
+    elements.sort(key=lambda e: e.unicast_addr)
 
     try:
-        with open(G_SENSOR_CONFIG_PATH, 'r') as file:
+        with open(G_HEALTH_CONFIG_PATH, 'r') as file:
             conf = yaml.safe_load(file)
-    except FileNotFoundError as e:
+    except FileNotFoundError:
         conf = dict()
 
     group_publication = {}
-    group_cadence = {}
+    group_health = {}
     if "config_group" in conf:
         if "publication" in conf["config_group"]:
             group_publication = conf["config_group"]["publication"]
-        if "cadence" in conf["config_group"]:
-            group_cadence = conf["config_group"]["cadence"]
+        if "health" in conf["config_group"]:
+            group_health = conf["config_group"]["health"]
 
     # define element(s)
     if "elements" not in conf:
@@ -106,7 +97,7 @@ async def get(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
         element_unicast_addr = element.unicast_addr
         key = f"0x{element_unicast_addr:04x}"
 
-        if (key in  conf["elements"]):
+        if (key in conf["elements"]):
             continue
 
         if (not unicast_addr or unicast_addr == element_unicast_addr):
@@ -116,7 +107,6 @@ async def get(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
                 "device_unicat_addr": f"0x{device_unicast_addr:04x}",
                 "net_key": device_net_key,
                 "publication": {},
-                "cadence": {}
             }
 
     # get element(s) publication
@@ -137,14 +127,14 @@ async def get(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
                         device_unicast_addr,
                         device_net_key,
                         element_unicast_addr,
-                        SensorServer,
+                        HealthServer,
                         send_interval=G_SEND_INTERVAL,
                         timeout=G_TIMEOUT
                     )
                     publication = Publication.extract(status)
                     try:
                         group_name = conf["elements"][key]["publication"]["group"]
-                    except:
+                    except KeyError:
                         group_name = None
                     if not group_name or group_name not in group_publication or publication != group_publication[group_name]:
                         conf["elements"][key]["publication"] = publication
@@ -152,10 +142,10 @@ async def get(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
                     publication = {}
                     print(f"0x{element_unicast_addr:04x} - fail: {e}")
 
-    # get element(s) cadence
+    # get element(s) health
     async with client:
         await client.connect()
-        sensor_client = client.elements[0][SensorClient]
+        health_client = client.elements[0][HealthClient]
 
         for element in elements:
             device_unicast_addr = element.device.unicast_addr
@@ -164,43 +154,31 @@ async def get(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
             key = f"0x{element_unicast_addr:04x}"
 
             if (not unicast_addr or unicast_addr == element_unicast_addr):
-                print(f"{key}: load cadence...")
+                print(f"{key}: load health...")
 
-                cadence = dict()
+                health = dict()
 
                 try:
-                    desc = await sensor_client.descriptor_get(
+                    status = await health_client.period_get(
                         element_unicast_addr,
                         app_index=element_app_key,
                         send_interval=G_SEND_INTERVAL,
                         timeout=G_TIMEOUT
                     )
-
-                    for desc_entity in desc:
-                        property_id = desc_entity.sensor_property_id
-                        property_name = BtSensorAttrPropertyId.get_name(property_id)
-
-                        status = await sensor_client.cadence_get(
-                            element_unicast_addr,
-                            app_index=element_app_key,
-                            property_id=property_id,
-                            send_interval=G_SEND_INTERVAL,
-                            timeout=G_TIMEOUT
-                        )
-                        cadence[property_name] = Cadence.extract(status)
+                    health['fast_period_divisor'] = status.fast_period_divisor
                 except TimeoutError as e:
-                    cadence = {}
+                    health = {}
                     print(f"0x{element_unicast_addr:04x} - fail: {e}")
                     pass
 
                 try:
-                    group_name = conf["elements"][key]["cadence"]["group"]
-                except:
+                    group_name = conf["elements"][key]["health"]["group"]
+                except KeyError:
                     group_name = None
-                if not group_name or group_name not in group_cadence or cadence != group_cadence[group_name]:
-                    conf["elements"][key]["cadence"] = cadence
+                if not group_name or group_name not in group_health or health != group_health[group_name]:
+                    conf["elements"][key]["health"] = health
 
-    with open(G_SENSOR_CONFIG_PATH, 'w') as file:
+    with open(G_HEALTH_CONFIG_PATH, 'w') as file:
         yaml.dump(conf, file)
 
 
@@ -210,19 +188,19 @@ async def set(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
     client = ClientApplication(loop)
 
     try:
-        with open(G_SENSOR_CONFIG_PATH, 'r') as file:
+        with open(G_HEALTH_CONFIG_PATH, 'r') as file:
             conf = yaml.safe_load(file)
     except FileNotFoundError as e:
-        print(f"Can't load Sensor config {G_SENSOR_CONFIG_PATH}: {e}")
+        print(f"Can't load Health config {G_HEALTH_CONFIG_PATH}: {e}")
         return
 
     group_publication = {}
-    group_cadence = {}
+    group_health = {}
     if "config_group" in conf:
         if "publication" in conf["config_group"]:
             group_publication = conf["config_group"]["publication"]
-        if "cadence" in conf["config_group"]:
-            group_cadence = conf["config_group"]["cadence"]
+        if "health" in conf["config_group"]:
+            group_health = conf["config_group"]["health"]
 
     # store element(s) publication
     async with provisioner:
@@ -238,82 +216,74 @@ async def set(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
 
                 try:
                     group_name = element["publication"]["group"]
-                except:
+                except KeyError:
                     group_name = None
                 if group_name and group_name in group_publication:
                     publication = group_publication[group_name]
                 else:
                     publication = element["publication"]
 
-                try:
-                    status = await config_client.set_publication(
-                        destination=int(element["device_unicat_addr"], 16),
-                        net_index=element["net_key"],
-                        element_address=element_unicast_addr,
-                        publication_address=int(publication["unicast_addr"], 16),
-                        app_key_index=publication["app_key"],
-                        model=SensorServer,
-                        ttl=publication["ttl"],
-                        publish_period=publication["period"],
-                        retransmit_count=publication["retransmissions"]["count"],
-                        retransmit_interval=publication["retransmissions"]["interval"],
-                        send_interval=G_SEND_INTERVAL,
-                        timeout=G_TIMEOUT
-                    )
-                except TimeoutError as e:
-                    print(f"0x{element_unicast_addr:04x} - fail: {e}")
+                if publication:
+                    try:
+                        await config_client.set_publication(
+                            destination=int(element["device_unicat_addr"], 16),
+                            net_index=element["net_key"],
+                            element_address=element_unicast_addr,
+                            publication_address=int(publication["unicast_addr"], 16),
+                            app_key_index=publication["app_key"],
+                            model=HealthServer,
+                            ttl=publication["ttl"],
+                            publish_period=publication["period"],
+                            retransmit_count=publication["retransmissions"]["count"],
+                            retransmit_interval=publication["retransmissions"]["interval"],
+                            send_interval=G_SEND_INTERVAL,
+                            timeout=G_TIMEOUT
+                        )
+                    except TimeoutError as e:
+                        print(f"0x{element_unicast_addr:04x} - fail: {e}")
 
-    # store element(s) cadence
+    # store element(s) health
     async with client:
         await client.connect()
-        sensor_client = client.elements[0][SensorClient]
+        health_client = client.elements[0][HealthClient]
 
         for key in conf["elements"].keys():
             element_unicast_addr = int(key, 16)
 
             if (not unicast_addr or unicast_addr == element_unicast_addr):
-                print(f"{key}: store cadence...")
+                print(f"{key}: store health...")
                 element = conf["elements"][key]
 
                 try:
-                    group_name = element["cadence"]["group"]
-                except:
+                    group_name = element["health"]["group"]
+                except KeyError:
                     group_name = None
-                if group_name and group_name in group_cadence:
-                    cadence = group_cadence[group_name]
+                if group_name and group_name in group_health:
+                    health = group_health[group_name]
                 else:
-                    cadence = element["cadence"]
+                    health = element["health"]
 
-                for property_name in cadence:
-                    property_cadence = cadence[property_name];
-                    status = await sensor_client.cadence_set(
+                if "fast_period_divisor" in health:
+                    await health_client.period_set(
                         destination=element_unicast_addr,
                         app_index=element["app_key"],
-                        sensor_setting_property_id=getattr(PropertyID, property_name),
-                        fast_cadence_period_divisor=property_cadence["fast_cadence_period_divisor"],
-                        status_trigger_type=(0 if property_cadence["status_trigger_type"] == "unit" else 1),
-                        status_trigger_delta_down=property_cadence["status_trigger_delta_down"],
-                        status_trigger_delta_up=property_cadence["status_trigger_delta_up"],
-                        status_min_interval=property_cadence["status_min_interval"],
-                        fast_cadence_low=property_cadence["fast_cadence_low"],
-                        fast_cadence_high=property_cadence["fast_cadence_high"],
+                        fast_period_divisor=health["fast_period_divisor"],
                         send_interval=G_SEND_INTERVAL,
                         timeout=G_TIMEOUT
                     )
 
 
-
 async def run(loop: asyncio.AbstractEventLoop):
     doc = """
-    Sensor control script
+    Health control script
 
     Usage:
-        bt_mesh_ctrl_sensor [-V] join
-        bt_mesh_ctrl_sensor [-V] leave
-        bt_mesh_ctrl_sensor [-V] [-a <address>] get
-        bt_mesh_ctrl_sensor [-V] [-a <address>] set
-        bt_mesh_ctrl_sensor [-h | --help]
-        bt_mesh_ctrl_sensor --version
+        bt_mesh_ctrl_health [-V] join
+        bt_mesh_ctrl_health [-V] leave
+        bt_mesh_ctrl_health [-V] [-a <address>] get
+        bt_mesh_ctrl_health [-V] [-a <address>] set
+        bt_mesh_ctrl_health [-h | --help]
+        bt_mesh_ctrl_health --version
 
     Options:
         -a <address>            Local node unicast address
@@ -339,6 +309,8 @@ async def run(loop: asyncio.AbstractEventLoop):
     else:
         print(doc)
         exit(-1)
+
+    # TODO: add commands: fault_log, fault_clear
 
 
 def cli():

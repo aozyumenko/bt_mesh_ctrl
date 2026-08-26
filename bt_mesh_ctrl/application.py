@@ -1,4 +1,4 @@
-"""MT Mesh application helpers"""
+"""BT Mesh application helpers"""
 from __future__ import annotations
 
 import asyncio

@@ -26,8 +26,7 @@ log = logging.getLogger()
 
 
 
-# FIXME: to /mesh/bt_mesh_ctrl
-G_PATH = "/mesh/bt_mesh_ctrl_sensor"
+G_PATH = "/mesh/bt_mesh_ctrl"
 G_CFGCLIENT_CONFIG_PATH = "~/.config/meshcfg/config_db.json"
 G_SWITCH_CONFIG_PATH = "./mesh_switch_config.yaml"
 G_SEND_INTERVAL = 1.0
