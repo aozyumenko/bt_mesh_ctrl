@@ -33,12 +33,10 @@ from bluetooth_mesh.messages.generic.ponoff import GenericPowerOnOffOpcode, Gene
 from bluetooth_mesh.messages.light.lightness import LightLightnessOpcode, LightLightnessSetupOpcode
 from bluetooth_mesh.messages.light.ctl import LightCTLOpcode, LightCTLSetupOpcode
 from bluetooth_mesh.messages.light.hsl import LightHSLOpcode, LightHSLSetupOpcode
-from bluetooth_mesh.messages.health import HealthOpcode
 from bluetooth_mesh.messages.scene import SceneOpcode
 from bluetooth_mesh.messages.sensor import SensorOpcode, SensorSetupOpcode
 from bluetooth_mesh.messages.time import TimeOpcode
 from bluetooth_mesh.messages.vendor.thermostat import ThermostatOpcode
-
 
 
 __all__ = (
@@ -49,7 +47,6 @@ __all__ = (
 )
 
 
-
 class IntEnumName(IntEnum):
     @classmethod
     def has_value(_class, val: int):
@@ -58,6 +55,7 @@ class IntEnumName(IntEnum):
     @classmethod
     def get_name(_class, val: int):
         return _class(val).name if _class.has_value(val) else "%04x" % (val)
+
 
 def model_id_to_num(model_id):
     return (0 if model_id[0] is None else model_id[0] * 65536) + model_id[1]
@@ -79,7 +77,7 @@ class BtMeshModelId(IntEnumName):
     GenericPowerOnOffServer = model_id_to_num(GenericPowerOnOffServer.MODEL_ID)
     GenericPowerOnOffSetupServer = model_id_to_num(GenericPowerOnOffSetupServer.MODEL_ID)
     GenericBatteryServer = model_id_to_num(GenericBatteryServer.MODEL_ID)
-    SensorServer =  model_id_to_num(SensorServer.MODEL_ID),
+    SensorServer = model_id_to_num(SensorServer.MODEL_ID),
     SensorSetupServer = model_id_to_num(SensorSetupServer.MODEL_ID),
     SensorClient = model_id_to_num(SensorClient.MODEL_ID),
     LightLightnessServer = model_id_to_num(LightLightnessServer.MODEL_ID)
@@ -120,16 +118,17 @@ class BtMeshOpcode:
         LightCTLSetupOpcode,
         LightHSLOpcode,
         LightHSLSetupOpcode,
-        HealthOpcode,
         SceneOpcode,
         SensorOpcode,
         SensorSetupOpcode,
         TimeOpcode,
         ThermostatOpcode,
     ]
-    _opcodes = {key: opcode
+    _opcodes = {
+        key: opcode
         for opcode_class in OPCODES
-            for key, opcode in opcode_class._value2member_map_.items()}
+        for key, opcode in opcode_class._value2member_map_.items()
+    }
 
     @classmethod
     def get(_class, val: int) -> IntEnum:
