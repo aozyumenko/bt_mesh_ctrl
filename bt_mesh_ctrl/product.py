@@ -50,5 +50,6 @@ product = PIDDict(
         (0x0059, 0x530e): "Temperatute & Humidity Sensor TH11",
         (0x0059, 0x530f): "PIR Motion Sensor P01",
         (0x0059, 0x5310): "PJ-1103 Electricity Energy Monitor",
+        (0x0059, 0x5311): "SCG Plumbing Controller",
     }
 )
