@@ -156,6 +156,14 @@ MeshNodePatterns: Final = {
         },
         PATTERN_PRIORITY: 0
     },
+    BtMeshModelId.TimeClient: {
+        PATTERN_ELEMENTS: {
+            PATTERN_MAIN: [
+                BtMeshModelId.TimeClient
+            ],
+        },
+        PATTERN_PRIORITY: 1
+    },
     BtMeshModelId.ThermostatServer: {
         PATTERN_ELEMENTS: {
             PATTERN_MAIN: [

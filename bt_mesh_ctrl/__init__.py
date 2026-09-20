@@ -21,6 +21,8 @@ from bluetooth_mesh.models.sensor import SensorServer, SensorSetupServer, Sensor
 from bluetooth_mesh.models.light.lightness import LightLightnessServer, LightLightnessSetupServer
 from bluetooth_mesh.models.light.ctl import LightCTLServer, LightCTLSetupServer, LightCTLTemperatureServer
 from bluetooth_mesh.models.light.hsl import LightHSLServer, LightHSLSetupServer, LightHSLHueServer, LightHSLSaturationServer
+from bluetooth_mesh.models.time import TimeServer, TimeSetupServer, TimeClient
+from bluetooth_mesh.models.scene import SceneServer, SceneSetupServer, SceneClient
 from bluetooth_mesh.models.vendor.thermostat import ThermostatServer
 
 from bluetooth_mesh.messages.config import ConfigOpcode
@@ -89,6 +91,12 @@ class BtMeshModelId(IntEnumName):
     LightHSLSetupServer = model_id_to_num(LightHSLSetupServer.MODEL_ID)
     LightHSLHueServer = model_id_to_num(LightHSLHueServer.MODEL_ID)
     LightHSLSaturationServer = model_id_to_num(LightHSLSaturationServer.MODEL_ID)
+    TimeServer = model_id_to_num(TimeServer.MODEL_ID)
+    TimeSetupServer = model_id_to_num(TimeSetupServer.MODEL_ID)
+    TimeClient = model_id_to_num(TimeClient.MODEL_ID)
+    SceneServer = model_id_to_num(SceneServer.MODEL_ID)
+    SceneSetupServer = model_id_to_num(SceneSetupServer.MODEL_ID)
+    SceneClient = model_id_to_num(SceneClient.MODEL_ID)
     ThermostatServer = model_id_to_num(ThermostatServer.MODEL_ID)
 
 

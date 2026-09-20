@@ -7,7 +7,10 @@ from enum import IntEnum
 from bluetooth_mesh.application import Application, Element, Capabilities
 from bluetooth_mesh.messages.config import GATTNamespaceDescriptor
 from bluetooth_mesh.messages.properties import PropertyID
-from bluetooth_mesh.models import ConfigClient
+from bluetooth_mesh.models import ConfigClient, HealthClient
+from bluetooth_mesh.models.generic.onoff import GenericOnOffClient
+from bluetooth_mesh.models.generic.dtt import GenericDTTClient
+from bluetooth_mesh.models.generic.ponoff import GenericPowerOnOffClient
 from bluetooth_mesh.models.sensor import SensorClient, SensorServer
 
 from bt_mesh_ctrl import BtMeshModelId, BtSensorAttrPropertyId
@@ -31,6 +34,10 @@ G_TIMEOUT = 10.0
 class ClientMainElement(Element):
     LOCATION = GATTNamespaceDescriptor.MAIN
     MODELS = [
+        HealthClient,
+        GenericOnOffClient,
+        GenericDTTClient,
+        GenericPowerOnOffClient,
         SensorClient,
     ]
 
@@ -280,20 +287,23 @@ async def set(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
 
                 for property_name in cadence:
                     property_cadence = cadence[property_name]
-                    await sensor_client.cadence_set(
-                        destination=element_unicast_addr,
-                        app_index=element["app_key"],
-                        sensor_setting_property_id=getattr(PropertyID, property_name),
-                        fast_cadence_period_divisor=property_cadence["fast_cadence_period_divisor"],
-                        status_trigger_type=(0 if property_cadence["status_trigger_type"] == "unit" else 1),
-                        status_trigger_delta_down=property_cadence["status_trigger_delta_down"],
-                        status_trigger_delta_up=property_cadence["status_trigger_delta_up"],
-                        status_min_interval=property_cadence["status_min_interval"],
-                        fast_cadence_low=property_cadence["fast_cadence_low"],
-                        fast_cadence_high=property_cadence["fast_cadence_high"],
-                        send_interval=G_SEND_INTERVAL,
-                        timeout=G_TIMEOUT
-                    )
+                    try:
+                        await sensor_client.cadence_set(
+                            destination=element_unicast_addr,
+                            app_index=element["app_key"],
+                            sensor_setting_property_id=getattr(PropertyID, property_name),
+                            fast_cadence_period_divisor=property_cadence["fast_cadence_period_divisor"],
+                            status_trigger_type=(0 if property_cadence["status_trigger_type"] == "unit" else 1),
+                            status_trigger_delta_down=property_cadence["status_trigger_delta_down"],
+                            status_trigger_delta_up=property_cadence["status_trigger_delta_up"],
+                            status_min_interval=property_cadence["status_min_interval"],
+                            fast_cadence_low=property_cadence["fast_cadence_low"],
+                            fast_cadence_high=property_cadence["fast_cadence_high"],
+                            send_interval=G_SEND_INTERVAL,
+                            timeout=G_TIMEOUT
+                        )
+                    except TimeoutError as e:
+                        print(f"0x{element_unicast_addr:04x} - fail: {e}")
 
 
 async def run(loop: asyncio.AbstractEventLoop):
