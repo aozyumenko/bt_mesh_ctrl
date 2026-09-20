@@ -6,8 +6,8 @@ from enum import IntEnum
 
 from bluetooth_mesh.application import Application, Element, Capabilities
 from bluetooth_mesh.messages.config import GATTNamespaceDescriptor
-from bluetooth_mesh.models import ConfigClient, HealthClient
-from bluetooth_mesh.models.generic.onoff import GenericOnOffServer, GenericOnOffClient
+from bluetooth_mesh.models import ConfigClient, HealthClient, HealthServer
+from bluetooth_mesh.models.generic.onoff import GenericOnOffClient
 from bluetooth_mesh.models.generic.dtt import GenericDTTClient
 from bluetooth_mesh.models.generic.ponoff import GenericPowerOnOffClient
 from bluetooth_mesh.models.sensor import SensorClient
@@ -24,8 +24,8 @@ log = logging.getLogger()
 
 G_PATH = "/mesh/bt_mesh_ctrl"
 G_CFGCLIENT_CONFIG_PATH = "~/.config/meshcfg/config_db.json"
-G_SWITCH_CONFIG_PATH = "./mesh_switch_config.yaml"
-G_SEND_INTERVAL = 1.0
+G_HEALTH_CONFIG_PATH = "./mesh_health_config.yaml"
+G_SEND_INTERVAL = 0.5
 G_TIMEOUT = 10.0
 
 
@@ -61,6 +61,8 @@ class ClientApplication(Application):
 async def mesh_join(loop: asyncio.AbstractEventLoop):
     client = ClientApplication(loop)
     async with client:
+        print("Join start")
+        await client.join()
         print("Join complete")
 
 
@@ -78,28 +80,22 @@ async def get(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
 
     mesh_conf = MeshCfgclientConf(G_CFGCLIENT_CONFIG_PATH)
     mesh_conf.load()
-    elements = mesh_conf.get_models_by_model_id(BtMeshModelId.GenericOnOffServer)
-    dtt_elements = {
-        model.unicast_addr: model
-        for model in mesh_conf.get_models_by_model_id(
-            BtMeshModelId.GenericDTTServer
-        )
-    }
+    elements = mesh_conf.get_models_by_model_id(BtMeshModelId.HealthServer)
     elements.sort(key=lambda e: e.unicast_addr)
 
     try:
-        with open(G_SWITCH_CONFIG_PATH, 'r') as file:
+        with open(G_HEALTH_CONFIG_PATH, 'r') as file:
             conf = yaml.safe_load(file)
     except FileNotFoundError:
         conf = dict()
 
     group_publication = {}
-    group_dtt = {}
+    group_health = {}
     if "config_group" in conf:
         if "publication" in conf["config_group"]:
             group_publication = conf["config_group"]["publication"]
-        if "dtt" in conf["config_group"]:
-            group_dtt = conf["config_group"]["dtt"]
+        if "health" in conf["config_group"]:
+            group_health = conf["config_group"]["health"]
 
     # define element(s)
     if "elements" not in conf:
@@ -120,6 +116,7 @@ async def get(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
                 "app_key": element.app_key,
                 "device_unicat_addr": f"0x{device_unicast_addr:04x}",
                 "net_key": device_net_key,
+                "publication": {},
             }
 
     # get element(s) publication
@@ -140,25 +137,25 @@ async def get(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
                         device_unicast_addr,
                         device_net_key,
                         element_unicast_addr,
-                        GenericOnOffServer,
+                        HealthServer,
                         send_interval=G_SEND_INTERVAL,
                         timeout=G_TIMEOUT
                     )
                     publication = Publication.extract(status)
                     try:
-                        group_name = conf["elements"][key]["server"]["publication"]["group"]
+                        group_name = conf["elements"][key]["publication"]["group"]
                     except KeyError:
                         group_name = None
                     if not group_name or group_name not in group_publication or publication != group_publication[group_name]:
-                        conf["elements"][key]["server"] = {}
-                        conf["elements"][key]["server"]["publication"] = publication
+                        conf["elements"][key]["publication"] = publication
                 except TimeoutError as e:
                     publication = {}
                     print(f"0x{element_unicast_addr:04x} - fail: {e}")
 
-    # get element(s) DTT
+    # get element(s) health
     async with client:
         await client.connect()
+        health_client = client.elements[0][HealthClient]
 
         for element in elements:
             device_unicast_addr = element.device.unicast_addr
@@ -167,39 +164,31 @@ async def get(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
             key = f"0x{element_unicast_addr:04x}"
 
             if (not unicast_addr or unicast_addr == element_unicast_addr):
-                if element_unicast_addr in dtt_elements:
-                    print(f"{key}: load DTT...")
-                    generic_dtt_client = client.elements[0][GenericDTTClient]
+                print(f"{key}: load health...")
 
-                    transition_time = None
+                health = dict()
 
-                    try:
-                        result = await generic_dtt_client.get(
-                            element_unicast_addr,
-                            app_index=element_app_key,
-                            send_interval=G_SEND_INTERVAL,
-                            timeout=G_TIMEOUT
-                        )
-                        transition_time = result.transition_time
+                try:
+                    status = await health_client.period_get(
+                        element_unicast_addr,
+                        app_index=element_app_key,
+                        send_interval=G_SEND_INTERVAL,
+                        timeout=G_TIMEOUT
+                    )
+                    health['fast_period_divisor'] = status.fast_period_divisor
+                except TimeoutError as e:
+                    health = {}
+                    print(f"0x{element_unicast_addr:04x} - fail: {e}")
+                    pass
 
-                    except TimeoutError as e:
-                        transition_time = None
-                        print(f"0x{element_unicast_addr:04x} - fail: {e}")
+                try:
+                    group_name = conf["elements"][key]["health"]["group"]
+                except KeyError:
+                    group_name = None
+                if not group_name or group_name not in group_health or health != group_health[group_name]:
+                    conf["elements"][key]["health"] = health
 
-                    try:
-                        group_name = conf["elements"][key]["server"]["dtt"]["group"]
-                    except KeyError:
-                        group_name = None
-                    if (
-                        not group_name
-                        or group_name not in group_dtt
-                        or transition_time != group_dtt[group_name]["transition_time"]
-                    ):
-                        conf["elements"][key]["server"]["dtt"] = {
-                            "transition_time": transition_time
-                        }
-
-    with open(G_SWITCH_CONFIG_PATH, 'w') as file:
+    with open(G_HEALTH_CONFIG_PATH, 'w') as file:
         yaml.dump(conf, file)
 
 
@@ -209,19 +198,19 @@ async def set(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
     client = ClientApplication(loop)
 
     try:
-        with open(G_SWITCH_CONFIG_PATH, 'r') as file:
+        with open(G_HEALTH_CONFIG_PATH, 'r') as file:
             conf = yaml.safe_load(file)
     except FileNotFoundError as e:
-        print(f"Can't load Switch config {G_SWITCH_CONFIG_PATH}: {e}")
+        print(f"Can't load Health config {G_HEALTH_CONFIG_PATH}: {e}")
         return
 
     group_publication = {}
-    group_dtt = {}
+    group_health = {}
     if "config_group" in conf:
         if "publication" in conf["config_group"]:
             group_publication = conf["config_group"]["publication"]
-        if "dtt" in conf["config_group"]:
-            group_dtt = conf["config_group"]["dtt"]
+        if "health" in conf["config_group"]:
+            group_health = conf["config_group"]["health"]
 
     # store element(s) publication
     async with provisioner:
@@ -229,85 +218,82 @@ async def set(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
         config_client = provisioner.elements[0][ConfigClient]
 
         for key in conf["elements"].keys():
-            element = conf["elements"][key]
             element_unicast_addr = int(key, 16)
 
-            if (not unicast_addr or unicast_addr == element_unicast_addr) and "server" in element:
+            if (not unicast_addr or unicast_addr == element_unicast_addr):
                 print(f"{key}: store publication...")
+                element = conf["elements"][key]
 
                 try:
-                    group_name = element["server"]["publication"]["group"]
+                    group_name = element["publication"]["group"]
                 except KeyError:
                     group_name = None
                 if group_name and group_name in group_publication:
                     publication = group_publication[group_name]
                 else:
-                    publication = element["server"]["publication"]
+                    publication = element["publication"]
 
-                try:
-                    await config_client.set_publication(
-                        destination=int(element["device_unicat_addr"], 16),
-                        net_index=element["net_key"],
-                        element_address=element_unicast_addr,
-                        publication_address=int(publication["unicast_addr"], 16),
-                        app_key_index=publication["app_key"],
-                        model=GenericOnOffServer,
-                        ttl=publication["ttl"],
-                        publish_period=publication["period"],
-                        retransmit_count=publication["retransmissions"]["count"],
-                        retransmit_interval=publication["retransmissions"]["interval"],
-                        send_interval=G_SEND_INTERVAL,
-                        timeout=G_TIMEOUT
-                    )
-                except TimeoutError as e:
-                    print(f"0x{element_unicast_addr:04x} - fail: {e}")
-
-    # store element(s) cadence
-    async with client:
-        await client.connect()
-
-        for key in conf["elements"].keys():
-            element_unicast_addr = int(key, 16)
-            element = conf["elements"][key]
-
-            if (not unicast_addr or unicast_addr == element_unicast_addr) and "server" in element:
-                if "dtt" in element["server"]:
-                    print(f"{key}: store DTT...")
-                    generic_dtt_client = client.elements[0][GenericDTTClient]
-
+                if publication:
                     try:
-                        group_name = element["server"]["dtt"]["group"]
-                    except KeyError:
-                        group_name = None
-
-                    if group_name and group_name in group_dtt:
-                        transition_time = group_dtt[group_name]["transition_time"]
-                    else:
-                        transition_time = element["server"]["dtt"]["transition_time"]
-
-                    try:
-                        await generic_dtt_client.set(
-                            destination=element_unicast_addr,
-                            app_index=element["app_key"],
-                            transition_time=transition_time,
+                        await config_client.set_publication(
+                            destination=int(element["device_unicat_addr"], 16),
+                            net_index=element["net_key"],
+                            element_address=element_unicast_addr,
+                            publication_address=int(publication["unicast_addr"], 16),
+                            app_key_index=publication["app_key"],
+                            model=HealthServer,
+                            ttl=publication["ttl"],
+                            publish_period=publication["period"],
+                            retransmit_count=publication["retransmissions"]["count"],
+                            retransmit_interval=publication["retransmissions"]["interval"],
                             send_interval=G_SEND_INTERVAL,
                             timeout=G_TIMEOUT
                         )
                     except TimeoutError as e:
                         print(f"0x{element_unicast_addr:04x} - fail: {e}")
 
+    # store element(s) health
+    async with client:
+        await client.connect()
+        health_client = client.elements[0][HealthClient]
+
+        for key in conf["elements"].keys():
+            element_unicast_addr = int(key, 16)
+
+            if (not unicast_addr or unicast_addr == element_unicast_addr):
+                print(f"{key}: store health...")
+                element = conf["elements"][key]
+
+                try:
+                    group_name = element["health"]["group"]
+                except KeyError:
+                    group_name = None
+                if group_name and group_name in group_health:
+                    health = group_health[group_name]
+                else:
+                    health = element["health"]
+
+                if "fast_period_divisor" in health:
+                    await health_client.period_set(
+                        destination=element_unicast_addr,
+                        app_index=element["app_key"],
+                        fast_period_divisor=health["fast_period_divisor"],
+                        send_interval=G_SEND_INTERVAL,
+                        timeout=G_TIMEOUT
+                    )
+
 
 async def run(loop: asyncio.AbstractEventLoop):
     doc = """
-    Switch control script
+    Health control script
 
     Usage:
-        bt_mesh_ctrl_switch [-V] join
-        bt_mesh_ctrl_switch [-V] leave
-        bt_mesh_ctrl_switch [-V] [-a <address>] get
-        bt_mesh_ctrl_switch [-V] [-a <address>] set
-        bt_mesh_ctrl_switch [-h | --help]
-        bt_mesh_ctrl_switch --version
+        bt_mesh_ctrl_health [-V] join
+        bt_mesh_ctrl_health [-V] leave
+        bt_mesh_ctrl_health [-V] [-a <address>] get
+        bt_mesh_ctrl_health [-V] [-a <address>] set
+        bt_mesh_ctrl_health [-h | --help]
+        bt_mesh_ctrl_health --version
 
     Options:
         -a <address>            Local node unicast address
@@ -333,6 +319,8 @@ async def run(loop: asyncio.AbstractEventLoop):
     else:
         print(doc)
         exit(-1)
+
+    # TODO: add commands: fault_log, fault_clear
 
 
 def cli():
