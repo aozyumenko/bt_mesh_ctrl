@@ -6,10 +6,11 @@ from enum import IntEnum
 
 from bluetooth_mesh.application import Application, Element, Capabilities
 from bluetooth_mesh.messages.config import GATTNamespaceDescriptor
-from bluetooth_mesh.models import ConfigClient
+from bluetooth_mesh.models import ConfigClient, HealthClient
 from bluetooth_mesh.models.generic.onoff import GenericOnOffServer, GenericOnOffClient
 from bluetooth_mesh.models.generic.dtt import GenericDTTClient
 from bluetooth_mesh.models.generic.ponoff import GenericPowerOnOffClient
+from bluetooth_mesh.models.sensor import SensorClient
 
 from bt_mesh_ctrl import BtMeshModelId
 from bt_mesh_ctrl.mesh_provisioner_conf import MeshProvisionerConf
@@ -31,9 +32,11 @@ G_TIMEOUT = 10.0
 class ClientMainElement(Element):
     LOCATION = GATTNamespaceDescriptor.MAIN
     MODELS = [
+        HealthClient,
         GenericOnOffClient,
         GenericDTTClient,
         GenericPowerOnOffClient,
+        SensorClient,
     ]
 
 
