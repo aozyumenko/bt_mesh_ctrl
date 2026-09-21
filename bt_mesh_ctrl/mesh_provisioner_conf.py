@@ -50,6 +50,7 @@ class MeshProvisionerElement:
 @dataclass
 class MeshProvisioner:
     uuid: UUID
+    node_net_keys: list[int]
     cid: int
     pid: int
     vid: int

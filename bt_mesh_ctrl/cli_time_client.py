@@ -192,7 +192,7 @@ async def run(loop: asyncio.AbstractEventLoop):
         exit(-1)
 
 
-def main():
+def cli():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
@@ -201,4 +201,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    cli()

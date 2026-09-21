@@ -20,7 +20,7 @@ log = logging.getLogger()
 
 
 G_CFGCLIENT_CONFIG_PATH = "~/.config/meshcfg/config_db.json"
-G_BATTERY_CLIENT_CONFIG_PATH = "./mesh_battery_client_config.yaml"
+G_BATTERY_CONFIG_PATH = "./mesh_battery_config.yaml"
 G_SEND_INTERVAL = 0.5
 G_TIMEOUT = 20.0
 
@@ -35,7 +35,7 @@ async def get(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
     elements.sort(key=lambda e: e.unicast_addr)
 
     try:
-        with open(G_BATTERY_CLIENT_CONFIG_PATH, 'r') as file:
+        with open(G_BATTERY_CONFIG_PATH, 'r') as file:
             conf = yaml.safe_load(file)
     except FileNotFoundError:
         conf = dict()
@@ -100,7 +100,7 @@ async def get(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
                     publication = {}
                     print(f"0x{element_unicast_addr:04x} - fail: {e}")
 
-    with open(G_BATTERY_CLIENT_CONFIG_PATH, 'w') as file:
+    with open(G_BATTERY_CONFIG_PATH, 'w') as file:
         yaml.dump(conf, file)
 
 
@@ -109,10 +109,10 @@ async def set(loop: asyncio.AbstractEventLoop, unicast_addr: [int | None] = None
     provisioner = MeshCfgclient(loop, provisioner_conf)
 
     try:
-        with open(G_BATTERY_CLIENT_CONFIG_PATH, 'r') as file:
+        with open(G_BATTERY_CONFIG_PATH, 'r') as file:
             conf = yaml.safe_load(file)
     except FileNotFoundError as e:
-        print(f"Can't load Sensor config {G_BATTERY_CLIENT_CONFIG_PATH}: {e}")
+        print(f"Can't load Sensor config {G_BATTERY_CONFIG_PATH}: {e}")
         return
 
     group_publication = {}
@@ -165,10 +165,10 @@ async def run(loop: asyncio.AbstractEventLoop):
     GenericBattery client control script
 
     Usage:
-        bt_mesh_ctrl_battery_client.py [-V] [-a <address>] get
-        bt_mesh_ctrl_battery_client.py [-V] [-a <address>] set
-        bt_mesh_ctrl_battery_client.py [-h | --help]
-        bt_mesh_ctrl_battery_client.py --version
+        bt_mesh_ctrl_battery.py [-V] [-a <address>] get
+        bt_mesh_ctrl_battery.py [-V] [-a <address>] set
+        bt_mesh_ctrl_battery.py [-h | --help]
+        bt_mesh_ctrl_battery.py --version
 
     Options:
         -a <address>            Local node unicast address
@@ -192,7 +192,7 @@ async def run(loop: asyncio.AbstractEventLoop):
         exit(-1)
 
 
-def main():
+def cli():
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
@@ -201,4 +201,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    cli()

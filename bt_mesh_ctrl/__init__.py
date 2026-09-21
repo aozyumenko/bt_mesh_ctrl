@@ -12,15 +12,30 @@ from bluetooth_mesh.models import (
     PrivateBeaconServer,
     PrivateBeaconClient,
 )
-from bluetooth_mesh.models.generic.onoff import GenericOnOffServer
+from bluetooth_mesh.models.generic.onoff import GenericOnOffServer, GenericOnOffClient
 from bluetooth_mesh.models.generic.dtt import GenericDTTServer
-from bluetooth_mesh.models.generic.level import GenericLevelServer
+from bluetooth_mesh.models.generic.level import GenericLevelServer, GenericLevelClient
 from bluetooth_mesh.models.generic.ponoff import GenericPowerOnOffServer, GenericPowerOnOffSetupServer
 from bluetooth_mesh.models.generic.battery import GenericBatteryServer
 from bluetooth_mesh.models.sensor import SensorServer, SensorSetupServer, SensorClient
-from bluetooth_mesh.models.light.lightness import LightLightnessServer, LightLightnessSetupServer
-from bluetooth_mesh.models.light.ctl import LightCTLServer, LightCTLSetupServer, LightCTLTemperatureServer
-from bluetooth_mesh.models.light.hsl import LightHSLServer, LightHSLSetupServer, LightHSLHueServer, LightHSLSaturationServer
+from bluetooth_mesh.models.light.lightness import (
+    LightLightnessServer,
+    LightLightnessSetupServer,
+    LightLightnessClient
+)
+from bluetooth_mesh.models.light.ctl import (
+    LightCTLServer,
+    LightCTLSetupServer,
+    LightCTLTemperatureServer,
+    LightCTLClient
+)
+from bluetooth_mesh.models.light.hsl import (
+    LightHSLServer,
+    LightHSLSetupServer,
+    LightHSLHueServer,
+    LightHSLSaturationServer,
+    LightHSLClient
+)
 from bluetooth_mesh.models.time import TimeServer, TimeSetupServer, TimeClient
 from bluetooth_mesh.models.scene import SceneServer, SceneSetupServer, SceneClient
 from bluetooth_mesh.models.vendor.thermostat import ThermostatServer
@@ -74,8 +89,10 @@ class BtMeshModelId(IntEnumName):
     PrivateBeaconServer = model_id_to_num(PrivateBeaconServer.MODEL_ID)
     PrivateBeaconClient = model_id_to_num(PrivateBeaconClient.MODEL_ID)
     GenericOnOffServer = model_id_to_num(GenericOnOffServer.MODEL_ID)
+    GenericOnOffClient = model_id_to_num(GenericOnOffClient.MODEL_ID)
     GenericDTTServer = model_id_to_num(GenericDTTServer.MODEL_ID)
     GenericLevelServer = model_id_to_num(GenericLevelServer.MODEL_ID)
+    GenericLevelClient = model_id_to_num(GenericLevelClient.MODEL_ID)
     GenericPowerOnOffServer = model_id_to_num(GenericPowerOnOffServer.MODEL_ID)
     GenericPowerOnOffSetupServer = model_id_to_num(GenericPowerOnOffSetupServer.MODEL_ID)
     GenericBatteryServer = model_id_to_num(GenericBatteryServer.MODEL_ID)
@@ -84,13 +101,16 @@ class BtMeshModelId(IntEnumName):
     SensorClient = model_id_to_num(SensorClient.MODEL_ID),
     LightLightnessServer = model_id_to_num(LightLightnessServer.MODEL_ID)
     LightLightnessSetupServer = model_id_to_num(LightLightnessSetupServer.MODEL_ID)
+    LightLightnessClient = model_id_to_num(LightLightnessClient.MODEL_ID)
     LightCTLServer = model_id_to_num(LightCTLServer.MODEL_ID)
     LightCTLSetupServer = model_id_to_num(LightCTLSetupServer.MODEL_ID)
     LightCTLTemperatureServer = model_id_to_num(LightCTLTemperatureServer.MODEL_ID)
+    LightCTLClient = model_id_to_num(LightCTLClient.MODEL_ID)
     LightHSLServer = model_id_to_num(LightHSLServer.MODEL_ID)
     LightHSLSetupServer = model_id_to_num(LightHSLSetupServer.MODEL_ID)
     LightHSLHueServer = model_id_to_num(LightHSLHueServer.MODEL_ID)
     LightHSLSaturationServer = model_id_to_num(LightHSLSaturationServer.MODEL_ID)
+    LightHSLClient = model_id_to_num(LightHSLClient.MODEL_ID)
     TimeServer = model_id_to_num(TimeServer.MODEL_ID)
     TimeSetupServer = model_id_to_num(TimeSetupServer.MODEL_ID)
     TimeClient = model_id_to_num(TimeClient.MODEL_ID)
