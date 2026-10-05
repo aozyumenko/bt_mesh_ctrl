@@ -156,6 +156,14 @@ MeshNodePatterns: Final = {
         },
         PATTERN_PRIORITY: 0
     },
+    BtMeshModelId.SceneClient: {
+        PATTERN_ELEMENTS: {
+            PATTERN_MAIN: [
+                BtMeshModelId.SceneClient
+            ]
+        },
+        PATTERN_PRIORITY: 1
+    },
     BtMeshModelId.TimeClient: {
         PATTERN_ELEMENTS: {
             PATTERN_MAIN: [
